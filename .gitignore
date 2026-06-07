@@ -1,0 +1,10 @@
+# Ignore everything except .gitignore and src/kern/
+/*
+!.gitignore
+!src/
+src/*
+!src/kern/
+
+# Ignore inside src/kern/
+src/kern/compile
+.DS_Store
