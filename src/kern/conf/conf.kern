@@ -424,6 +424,11 @@ defoption netfs
 # Note that "emufs" is completely contained in the "emu" device.
 #
 
+#
+# Virtual Memory with Demand Paging (Project C1)
+#
+defoption paging
+
 
 ########################################
 #                                      #
