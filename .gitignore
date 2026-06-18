@@ -6,5 +6,8 @@ src/*
 !src/kern/
 
 # Ignore inside src/kern/
-src/kern/compile
 .DS_Store
+
+# Ignore everything inside compile except .gitkeep
+src/kern/compile/*
+!src/kern/compile/.gitkeep
