@@ -34,10 +34,18 @@
 #include <vm.h>
 #include <proc.h>
 
+#include <segments.h>
+
+#define VM_STACKPAGES	18
+
+
+static int as_add_segment(struct addrspace *as, vaddr_t vaddr, size_t memsz,
+		 size_t filesz, off_t offset, int readable, int writeable, 
+		 int executable);
+
 /*
- * Note! If OPT_DUMBVM is set, as is the case until you start the VM
- * assignment, this file is not compiled or linked or in any way
- * used. The cheesy hack versions in dumbvm.c are used instead.
+ * If OPT_DUMBVM is set, this file is not compiled, linked, or used in
+ * any way: the cheesy versions in dumbvm.c are used instead.
  */
 
 struct addrspace *
@@ -50,9 +58,10 @@ as_create(void)
 		return NULL;
 	}
 
-	/*
-	 * Initialize as needed.
-	 */
+	as->as_segments = NULL;
+	as->as_nsegs = 0;
+	as->as_pt = NULL;
+	as->as_v = NULL;
 
 	return as;
 }
@@ -67,9 +76,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 		return ENOMEM;
 	}
 
-	/*
-	 * Write this.
-	 */
+	/* TODO: deep-copy segments + page table after pt.c/coremap. */
 
 	(void)old;
 
@@ -80,10 +87,9 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 void
 as_destroy(struct addrspace *as)
 {
-	/*
-	 * Clean up as needed.
-	 */
-
+	kfree(as->as_segments);
+	// TODO: destroy pt
+	// TODO: close file and destory vnode 
 	kfree(as);
 }
 
@@ -101,9 +107,7 @@ as_activate(void)
 		return;
 	}
 
-	/*
-	 * Write this.
-	 */
+	/* TODO: invalidate the whole TLB here. */
 }
 
 void
@@ -121,34 +125,29 @@ as_deactivate(void)
  * segment in memory extends from VADDR up to (but not including)
  * VADDR+MEMSIZE.
  *
- * The READABLE, WRITEABLE, and EXECUTABLE flags are set if read,
- * write, or execute permission should be set on the segment. At the
- * moment, these are ignored. When you write the VM system, you may
- * want to implement them.
+ * The READABLE, WRITEABLE, and EXECUTABLE flags are stored in the
+ * segment and used to set page protections (e.g. read-only text).
  */
-int
-as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
-		 int readable, int writeable, int executable)
-{
-	/*
-	 * Write this.
-	 */
 
-	(void)as;
-	(void)vaddr;
-	(void)memsize;
-	(void)readable;
-	(void)writeable;
-	(void)executable;
-	return ENOSYS;
+int
+as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsz, 
+		 size_t filesz, off_t offset, int readable, int writeable, int executable)
+{
+	int result;
+	memsz += vaddr & ~(vaddr_t)PAGE_FRAME;
+	vaddr &= PAGE_FRAME;
+	memsz = (memsz + PAGE_SIZE - 1) & PAGE_FRAME;
+	
+	result = as_add_segment(as, vaddr, memsz, filesz, 
+		 offset, readable, writeable, executable);
+
+	return result;
 }
 
 int
 as_prepare_load(struct addrspace *as)
 {
-	/*
-	 * Write this.
-	 */
+	/* On-demand paging: no physical frames are pre-allocated here. */
 
 	(void)as;
 	return 0;
@@ -157,9 +156,7 @@ as_prepare_load(struct addrspace *as)
 int
 as_complete_load(struct addrspace *as)
 {
-	/*
-	 * Write this.
-	 */
+	/* Nothing to finalize: pages are loaded lazily on page fault. */
 
 	(void)as;
 	return 0;
@@ -168,15 +165,49 @@ as_complete_load(struct addrspace *as)
 int
 as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 {
-	/*
-	 * Write this.
-	 */
+	int result;
+	size_t sz = VM_STACKPAGES * PAGE_SIZE;
+	vaddr_t vaddr = USERSTACK - sz;
+	
+	result = as_add_segment(as, vaddr, sz, 0, 0, true, true, false);
+	if (result) {
+		return result;
+	}
 
-	(void)as;
-
-	/* Initial user-level stack pointer */
 	*stackptr = USERSTACK;
-
 	return 0;
 }
 
+static int
+as_add_segment(struct addrspace *as, vaddr_t vaddr, size_t memsz,
+		 size_t filesz, off_t offset, int readable, int writeable, 
+		 int executable) {
+	struct segment *newarr;
+
+	// allocate new segments array
+	newarr = kmalloc((as->as_nsegs + 1) * sizeof(struct segment));
+	if (newarr == NULL) {
+		return ENOMEM;
+	}
+
+	// copy prev segments into the new array
+	if (as->as_segments != NULL) {
+		memcpy(newarr, as->as_segments, as->as_nsegs * sizeof(struct segment));
+		kfree(as->as_segments);
+	}
+
+	as->as_segments = newarr;
+	
+	// add the new segment
+	as->as_segments[as->as_nsegs].vaddr = vaddr;
+	as->as_segments[as->as_nsegs].memsz = memsz;
+	as->as_segments[as->as_nsegs].filesz = filesz;
+	as->as_segments[as->as_nsegs].offset = offset;
+	as->as_segments[as->as_nsegs].readable = readable;
+	as->as_segments[as->as_nsegs].writable = writeable;
+	as->as_segments[as->as_nsegs].executable = executable;
+	
+	as->as_nsegs++;
+
+	return 0;
+}
