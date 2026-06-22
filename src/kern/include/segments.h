@@ -3,12 +3,12 @@
 
 #include <types.h>
 
+struct addrspace;
+
 /*
  * Segment - data structure associated with the address space,
  * stores data reguarding a single segment
  */
-
-#if OPT_PAGING
 struct segment {
     vaddr_t vaddr;
     size_t memsz;
@@ -18,6 +18,7 @@ struct segment {
     bool writable;
     bool executable;
 };
-#endif /* OPT_PAGING */
+
+struct segment *seg_find(struct addrspace* as, vaddr_t vaddr);
 
 #endif /* _SEGMENTS_H_ */
