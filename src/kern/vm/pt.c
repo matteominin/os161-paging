@@ -1,50 +1,37 @@
 #include <types.h>
+#include <kern/errno.h>
 #include <lib.h>
 #include <vm.h>
 #include <pt.h>
 
 struct pt *
-pt_create(size_t npages, vaddr_t base) {
+pt_create(void) {
     struct pt *pt;
-    size_t i;
-
-    KASSERT(npages > 0);
-    KASSERT((base & PAGE_FRAME) == base);
 
     pt = kmalloc(sizeof(struct pt));
     if (pt == NULL) return NULL;
 
-    pt->npages = npages;
-    pt->base = base;
-    pt->entries = kmalloc(npages * sizeof(struct pt_entry));
-    if (pt->entries == NULL) {
-        kfree(pt);
-        return NULL;
-    }
-
-    for (i=0; i<npages; i++) {
-        pt->entries[i].paddr = 0;
-        pt->entries[i].valid = false;
-        pt->entries[i].swapped = false;
-    }
-
+    bzero(pt->list, sizeof(pt->list));
     return pt;
 }
 
 int 
 pt_get_frame(struct pt *pt, vaddr_t vaddr, paddr_t *paddr) {
-    size_t index;
+    size_t l1, l2;
+    struct pt_entry* l2_table;
     struct pt_entry entry;
     
     KASSERT(pt != NULL);
     KASSERT(paddr != NULL);
 
-    index = (vaddr - pt->base) / PAGE_SIZE;
+    l1 = L1_INDEX(vaddr);
+    l2_table = pt->list[l1];
+    if (l2_table == NULL) {
+        return PT_NOT_PRESENT;
+    }
 
-    KASSERT(index < pt->npages);
-
-    entry = pt->entries[index];
-
+    l2 = L2_INDEX(vaddr);
+    entry = l2_table[l2];
     if (entry.valid) {
         *paddr = entry.paddr;
         return PT_PRESENT;
@@ -57,26 +44,42 @@ pt_get_frame(struct pt *pt, vaddr_t vaddr, paddr_t *paddr) {
     return PT_NOT_PRESENT;
 }
 
-void 
+int 
 pt_set_frame(struct pt *pt, vaddr_t vaddr, paddr_t paddr) {
-    size_t index;
+    size_t l1, l2;
+    struct pt_entry* l2_table;
 
     KASSERT(pt != NULL);
     KASSERT((paddr & PAGE_FRAME) == paddr);
 
-    index = (vaddr - pt->base) / PAGE_SIZE;
+    l1 = L1_INDEX(vaddr);
+    l2_table = pt->list[l1];
 
-    KASSERT(index < pt->npages);
+    if (l2_table == NULL) {
+        l2_table = kmalloc(PT_L2_ENTRIES * sizeof(struct pt_entry));
+        if (l2_table == NULL) {
+            return ENOMEM;
+        }
 
-    pt->entries[index].paddr = paddr;
-    pt->entries[index].valid = true;
-    pt->entries[index].swapped = false;
+        bzero(l2_table, PT_L2_ENTRIES * sizeof(struct pt_entry));
+    }
+
+    l2 = L2_INDEX(vaddr);
+    l2_table[l2].paddr = paddr;
+    l2_table[l2].valid = true;
+    l2_table[l2].swapped = false;
+
+    return 0;
 }
 
 void 
 pt_destroy(struct pt *pt) {
+    int i;
     KASSERT(pt != NULL);
 
-    kfree(pt->entries);
+    for (i=0; i<PT_L1_ENTRIES; i++) {
+        kfree(pt->list[i]);
+    }
+
     kfree(pt);
 }
