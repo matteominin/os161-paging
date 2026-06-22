@@ -343,7 +343,8 @@ file      proc/proc.c
 file      vm/kmalloc.c
 
 optofffile dumbvm   vm/addrspace.c
-optofffile dumbvm vm/pt.c
+optofffile dumbvm   vm/pt.c
+optofffile dumbvm   vm/segments.c
 
 #
 # Network
