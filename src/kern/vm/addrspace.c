@@ -71,6 +71,9 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 {
 	struct addrspace *newas;
 
+	KASSERT(old != NULL);
+	KASSERT(ret != NULL);
+
 	newas = as_create();
 	if (newas==NULL) {
 		return ENOMEM;
@@ -87,8 +90,10 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 void
 as_destroy(struct addrspace *as)
 {
+	KASSERT(as != NULL);
+
 	kfree(as->as_segments);
-	// TODO: destroy pt
+	
 	// TODO: close file and destory vnode 
 	kfree(as);
 }
@@ -134,6 +139,9 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsz,
 		 size_t filesz, off_t offset, int readable, int writeable, int executable)
 {
 	int result;
+
+	KASSERT(as != NULL);
+
 	memsz += vaddr & ~(vaddr_t)PAGE_FRAME;
 	vaddr &= PAGE_FRAME;
 	memsz = (memsz + PAGE_SIZE - 1) & PAGE_FRAME;
@@ -148,6 +156,7 @@ int
 as_prepare_load(struct addrspace *as)
 {
 	/* On-demand paging: no physical frames are pre-allocated here. */
+	KASSERT(as != NULL);
 
 	(void)as;
 	return 0;
@@ -157,6 +166,8 @@ int
 as_complete_load(struct addrspace *as)
 {
 	/* Nothing to finalize: pages are loaded lazily on page fault. */
+	KASSERT(as != NULL);
+
 
 	(void)as;
 	return 0;
@@ -166,6 +177,10 @@ int
 as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 {
 	int result;
+
+	KASSERT(as != NULL);
+	KASSERT(stackptr != NULL);
+	 
 	size_t sz = VM_STACKPAGES * PAGE_SIZE;
 	vaddr_t vaddr = USERSTACK - sz;
 	
@@ -183,6 +198,9 @@ as_add_segment(struct addrspace *as, vaddr_t vaddr, size_t memsz,
 		 size_t filesz, off_t offset, int readable, int writeable, 
 		 int executable) {
 	struct segment *newarr;
+
+	KASSERT(as != NULL);
+	KASSERT((vaddr & PAGE_FRAME) == vaddr);
 
 	// allocate new segments array
 	newarr = kmalloc((as->as_nsegs + 1) * sizeof(struct segment));
