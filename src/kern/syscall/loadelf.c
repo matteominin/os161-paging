@@ -59,7 +59,9 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <elf.h>
+#include <segments.h>
 #include "opt-paging.h"
+#include "opt-dumbvm.h"
 
 /*
  * Load a segment at virtual address VADDR. The segment in memory
@@ -75,6 +77,8 @@
  * change this code to not use uiomove, be sure to check for this case
  * explicitly.
  */
+
+#if OPT_DUMBVM
 static
 int
 load_segment(struct addrspace *as, struct vnode *v,
@@ -145,6 +149,70 @@ load_segment(struct addrspace *as, struct vnode *v,
 
 	return result;
 }
+#endif
+
+#if OPT_PAGING
+int 
+load_page(struct addrspace *as, vaddr_t faultaddr, paddr_t paddr) {
+	struct uio ku;
+	struct iovec iov;
+	struct segment *seg;
+	vaddr_t vpage;
+	vaddr_t fstart, fend;
+	size_t read_len, dest_off;
+	off_t elf_off;
+	int result;
+
+	KASSERT(as != NULL);
+	KASSERT(as->as_v != NULL);
+	KASSERT((paddr & PAGE_FRAME) == paddr);
+
+	/* Search segment */
+	seg = seg_find(as, faultaddr);
+	if (seg == NULL) {
+		return EFAULT;
+	}
+
+	/* prepare the frame */
+	bzero((void *)PADDR_TO_KVADDR(paddr), PAGE_SIZE);
+
+	/* page and elf intersection */
+	vpage = faultaddr & PAGE_FRAME;
+	fstart = vpage;
+	if (fstart < seg->vaddr) {
+		fstart = seg->vaddr;
+	}
+
+	fend = vpage + PAGE_SIZE;
+	if (fend > seg->vaddr + seg->filesz) {
+		fend = seg->vaddr + seg->filesz;
+	}
+
+	if (fstart >= fend) {
+		return 0;
+	}
+
+	read_len = fend - fstart;
+	dest_off = fstart - vpage;
+	elf_off = seg->offset + (fstart - seg->vaddr);
+
+	/* Copy elf section into frame */
+	uio_kinit(&iov, &ku, (void *)(PADDR_TO_KVADDR(paddr) + dest_off), 
+		 read_len, elf_off, UIO_READ);
+
+	result = VOP_READ(as->as_v, &ku);
+	if (result) {
+		return result;
+	}
+
+	if (ku.uio_resid != 0) {
+		kprintf("ELF: short read - file truncated?\n");
+		return ENOEXEC;
+	}
+
+	return 0;
+}
+#endif
 
 /*
  * Load an ELF executable user program into the current address space.
@@ -262,6 +330,8 @@ load_elf(struct vnode *v, vaddr_t *entrypoint)
 			return result;
 		}
 	}
+
+#if OPT_DUMBVM
 	result = as_prepare_load(as);
 	if (result) {
 		return result;
@@ -309,6 +379,7 @@ load_elf(struct vnode *v, vaddr_t *entrypoint)
 	if (result) {
 		return result;
 	}
+#endif
 
 	*entrypoint = eh.e_entry;
 
