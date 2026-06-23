@@ -69,7 +69,11 @@ runprogram(char *progname)
 	KASSERT(proc_getas() == NULL);
 
 	/* Create a new address space. */
+#if OPT_PAGING
+	as = as_create(v);
+#else
 	as = as_create();
+#endif
 	if (as == NULL) {
 		vfs_close(v);
 		return ENOMEM;

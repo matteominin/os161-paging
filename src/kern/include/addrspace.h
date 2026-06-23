@@ -69,15 +69,13 @@ struct addrspace {
 /*
  * Functions in addrspace.c:
  *
- *    as_create - create a new empty address space. You need to make
- *                sure this gets called in all the right places. You
- *                may find you want to change the argument list. May
- *                return NULL on out-of-memory error.
- *
+ *    as_create - create a new address space with vnode v and empty 
+ *                two level page table. 
+ *                Returns addrspace pointer or NULL if there isn't enough memory. 
+ *                 
  *    as_copy   - create a new address space that is an exact copy of
- *                an old one. Probably calls as_create to get a new
- *                empty address space and fill it in, but that's up to
- *                you.
+ *                an old one.
+ *                Returns 0 on success, ENOMEM if there isn't enough memory.
  *
  *    as_activate - make curproc's address space the one currently
  *                "seen" by the processor.
@@ -87,8 +85,7 @@ struct addrspace {
  *                avoid potentially "seeing" it while it's being
  *                destroyed.
  *
- *    as_destroy - dispose of an address space. You may need to change
- *                the way this works if implementing user-level threads.
+ *    as_destroy - dispose of an address space.
  *
  *    as_define_region - set up a region of memory within the address
  *                space.
@@ -102,12 +99,8 @@ struct addrspace {
  *    as_define_stack - set up the stack region in the address space.
  *                (Normally called *after* as_complete_load().) Hands
  *                back the initial stack pointer for the new process.
- *
- * Note that when using dumbvm, addrspace.c is not used and these
- * functions are found in dumbvm.c.
  */
 
-struct addrspace *as_create(void);
 int               as_copy(struct addrspace *src, struct addrspace **ret);
 void              as_activate(void);
 void              as_deactivate(void);
@@ -116,6 +109,7 @@ int               as_prepare_load(struct addrspace *as);
 int               as_complete_load(struct addrspace *as);
 
 #if OPT_PAGING
+struct addrspace *as_create(struct vnode *v);
 int               as_define_region(struct addrspace *as,
                                    vaddr_t vaddr, size_t memsz,
                                    size_t filesz, off_t offset,
@@ -124,6 +118,7 @@ int               as_define_region(struct addrspace *as,
                                    int executable);
 int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 #else 
+struct addrspace *as_create(void);
 int               as_define_region(struct addrspace *as,
                                    vaddr_t vaddr, size_t sz,
                                    int readable,
@@ -141,6 +136,8 @@ int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
  */
 
 int load_elf(struct vnode *v, vaddr_t *entrypoint);
-
+#if OPT_PAGING
+int load_page(struct addrspace *as, vaddr_t faultaddr, paddr_t paddr);
+#endif
 
 #endif /* _ADDRSPACE_H_ */

@@ -33,8 +33,11 @@
 #include <addrspace.h>
 #include <vm.h>
 #include <proc.h>
+#include <vfs.h>
+#include <vnode.h>
 
 #include <segments.h>
+#include <pt.h>
 
 #define VM_STACKPAGES	18
 
@@ -49,10 +52,12 @@ static int as_add_segment(struct addrspace *as, vaddr_t vaddr, size_t memsz,
  */
 
 struct addrspace *
-as_create(void)
+as_create(struct vnode *v)
 {
 	struct addrspace *as;
 
+	KASSERT(v != NULL);
+	
 	as = kmalloc(sizeof(struct addrspace));
 	if (as == NULL) {
 		return NULL;
@@ -60,8 +65,14 @@ as_create(void)
 
 	as->as_segments = NULL;
 	as->as_nsegs = 0;
-	as->as_pt = NULL;
-	as->as_v = NULL;
+	as->as_pt = pt_create();
+	if (as->as_pt == NULL) {
+		kfree(as);
+		return NULL;
+	}
+
+	VOP_INCREF(v);
+	as->as_v = v;
 
 	return as;
 }
@@ -70,18 +81,29 @@ int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
 	struct addrspace *newas;
+	size_t segsize;
 
 	KASSERT(old != NULL);
 	KASSERT(ret != NULL);
 
-	newas = as_create();
+	newas = as_create(old->as_v);
 	if (newas==NULL) {
 		return ENOMEM;
 	}
 
-	/* TODO: deep-copy segments + page table after pt.c/coremap. */
+	if (old->as_nsegs > 0) {
+		segsize = old->as_nsegs * sizeof(struct segment);
 
-	(void)old;
+		newas->as_segments = kmalloc(segsize);	
+		if (newas->as_segments == NULL) {
+			as_destroy(newas);
+			return ENOMEM;
+		}
+		memcpy(newas->as_segments, old->as_segments, segsize);
+		newas->as_nsegs = old->as_nsegs;
+	}  
+
+	// TODO: copy pt (discuss how to manage frames)
 
 	*ret = newas;
 	return 0;
@@ -93,8 +115,8 @@ as_destroy(struct addrspace *as)
 	KASSERT(as != NULL);
 
 	kfree(as->as_segments);
-	
-	// TODO: close file and destory vnode 
+	vfs_close(as->as_v);
+	pt_destroy(as->as_pt);
 	kfree(as);
 }
 
