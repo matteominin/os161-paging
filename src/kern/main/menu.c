@@ -45,6 +45,7 @@
 #include <test.h>
 #include "opt-sfs.h"
 #include "opt-net.h"
+#include "opt-paging.h"
 
 /*
  * In-kernel menu and command dispatcher.
@@ -560,6 +561,9 @@ static const char *testmenu[] = {
 	"[km2] kmalloc stress test           ",
 	"[km3] Large kmalloc test            ",
 	"[km4] Multipage kmalloc test        ",
+#if OPT_PAGING
+	"[cmt] Coremap frame allocator test  ",
+#endif
 	"[tt1] Thread test 1                 ",
 	"[tt2] Thread test 2                 ",
 	"[tt3] Thread test 3                 ",
@@ -662,6 +666,9 @@ static struct {
 	{ "km2",	kmallocstress },
 	{ "km3",	kmalloctest3 },
 	{ "km4",	kmalloctest4 },
+#if OPT_PAGING
+	{ "cmt",	coremaptest },
+#endif
 #if OPT_NET
 	{ "net",	nettest },
 #endif

@@ -340,7 +340,10 @@ file      proc/proc.c
 # (you will probably want to add stuff here while doing the VM assignment)
 #
 
+defoption paging
+
 file      vm/kmalloc.c
+optfile   paging vm/coremap.c
 
 optofffile dumbvm   vm/addrspace.c
 optofffile dumbvm   vm/pt.c
@@ -427,12 +430,6 @@ defoption netfs
 # Note that "emufs" is completely contained in the "emu" device.
 #
 
-#
-# Virtual Memory with Demand Paging (Project C1)
-#
-defoption paging
-
-
 ########################################
 #                                      #
 #              Test code               #
@@ -447,5 +444,6 @@ file		test/tt3.c
 file		test/synchtest.c
 file		test/semunit.c
 file		test/kmalloctest.c
+optfile paging	test/coremaptest.c
 file		test/fstest.c
 optfile net	test/nettest.c
