@@ -38,8 +38,6 @@
 #include <vm.h> /* for PAGE_SIZE */
 #include <test.h>
 
-#include "opt-dumbvm.h"
-
 ////////////////////////////////////////////////////////////
 // km1/km2
 
@@ -349,9 +347,6 @@ kmalloctest4(int nargs, char **args)
 	(void)args;
 
 	kprintf("Starting multipage kmalloc test...\n");
-#if OPT_DUMBVM
-	kprintf("(This test will not work with dumbvm)\n");
-#endif
 
 	sem = sem_create("kmalloctest4", 0);
 	if (sem == NULL) {

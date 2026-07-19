@@ -32,12 +32,12 @@
 #include <lib.h>
 #include <spl.h>
 #include <cpu.h>
-#include <spinlock.h>
 #include <proc.h>
 #include <current.h>
 #include <mips/tlb.h>
 #include <addrspace.h>
 #include <vm.h>
+#include <coremap.h>
 
 /*
  * Dumb MIPS-only "VM system" that is intended to only be just barely
@@ -58,17 +58,6 @@
 /* under dumbvm, always have 72k of user stack */
 /* (this must be > 64K so argument blocks of size ARG_MAX will fit) */
 #define DUMBVM_STACKPAGES    18
-
-/*
- * Wrap ram_stealmem in a spinlock.
- */
-static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
-
-void
-vm_bootstrap(void)
-{
-	/* Do nothing. */
-}
 
 /*
  * Check if we're in a context that can sleep. While most of the
@@ -94,36 +83,7 @@ static
 paddr_t
 getppages(unsigned long npages)
 {
-	paddr_t addr;
-
-	spinlock_acquire(&stealmem_lock);
-
-	addr = ram_stealmem(npages);
-
-	spinlock_release(&stealmem_lock);
-	return addr;
-}
-
-/* Allocate/free some kernel-space virtual pages */
-vaddr_t
-alloc_kpages(unsigned npages)
-{
-	paddr_t pa;
-
-	dumbvm_can_sleep();
-	pa = getppages(npages);
-	if (pa==0) {
-		return 0;
-	}
-	return PADDR_TO_KVADDR(pa);
-}
-
-void
-free_kpages(vaddr_t addr)
-{
-	/* nothing - leak the memory. */
-
-	(void)addr;
+	return coremap_alloc_pages(npages);
 }
 
 void
@@ -257,6 +217,9 @@ void
 as_destroy(struct addrspace *as)
 {
 	dumbvm_can_sleep();
+	coremap_free_pages(as->as_pbase1);
+	coremap_free_pages(as->as_pbase2);
+	coremap_free_pages(as->as_stackpbase);
 	kfree(as);
 }
 
@@ -351,11 +314,17 @@ as_prepare_load(struct addrspace *as)
 
 	as->as_pbase2 = getppages(as->as_npages2);
 	if (as->as_pbase2 == 0) {
+		coremap_free_pages(as->as_pbase1);
+		as->as_pbase1 = 0;
 		return ENOMEM;
 	}
 
 	as->as_stackpbase = getppages(DUMBVM_STACKPAGES);
 	if (as->as_stackpbase == 0) {
+		coremap_free_pages(as->as_pbase2);
+		coremap_free_pages(as->as_pbase1);
+		as->as_pbase2 = 0;
+		as->as_pbase1 = 0;
 		return ENOMEM;
 	}
 
