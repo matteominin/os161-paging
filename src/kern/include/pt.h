@@ -2,6 +2,7 @@
 #define _PT_H
 
 #include <types.h>
+#include <swapfile.h>
 
 #define PT_L1_BITS      10
 #define PT_L2_BITS      10
@@ -11,16 +12,16 @@
 #define L1_INDEX(addr)  (((addr) >> (PT_L2_BITS + PT_PAGE_BITS)) & (PT_L1_ENTRIES - 1))
 #define L2_INDEX(addr)  (((addr) >> PT_PAGE_BITS) & (PT_L2_ENTRIES - 1))
 
-enum pt_status {
-    PT_PRESENT,
-    PT_SWAPPED,
-    PT_NOT_PRESENT
+enum pte_status {
+    PTE_INVALID = 0,
+    PTE_VALID,
+    PTE_SWAPPED
 };
 
 struct pt_entry {
     paddr_t paddr;
-    bool valid;
-    bool swapped;
+    swap_index_t swap_index;
+    enum pte_status status;
 };
 
 struct pt_l1 {
@@ -42,8 +43,9 @@ struct pt_l2 {
  *                Returns NULL on out-of-memory error.
  *
  *    pt_get_frame - look up the page for VADDR and return its state:
- *                PT_PRESENT (in RAM, frame stored in *paddr),
- *                PT_SWAPPED (on the swap file) or PT_NOT_PRESENT.
+ *                PTE_VALID (in RAM, frame stored in *paddr),
+ *                PTE_SWAPPED (swap slot stored in *swap_index) or
+ *                PTE_INVALID.
  *
  *    pt_set_frame - mark the page for VADDR as present in RAM at the
  *                physical address PADDR.
@@ -54,7 +56,8 @@ struct pt_l2 {
  */
 
 struct pt_l1 *pt_create(void);
-int pt_get_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t *paddr);
+enum pte_status pt_get_frame(struct pt_l1 *pt_l1, vaddr_t vaddr,
+                             paddr_t *paddr, swap_index_t *swap_index);
 int pt_set_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t paddr);
 void pt_destroy(struct pt_l1 *pt_l1);
 

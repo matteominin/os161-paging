@@ -15,33 +15,36 @@ pt_create(void) {
     return pt_l1;
 }
 
-int 
-pt_get_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t *paddr) {
+enum pte_status
+pt_get_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t *paddr,
+             swap_index_t *swap_index) {
     size_t l1, l2;
     struct pt_l2* pt_l2;
     struct pt_entry entry;
     
     KASSERT(pt_l1 != NULL);
     KASSERT(paddr != NULL);
+    KASSERT(swap_index != NULL);
 
     l1 = L1_INDEX(vaddr);
     pt_l2 = pt_l1->list[l1];
     if (pt_l2 == NULL) {
-        return PT_NOT_PRESENT;
+        return PTE_INVALID;
     }
 
     l2 = L2_INDEX(vaddr);
     entry = pt_l2->list[l2];
-    if (entry.valid) {
+    if (entry.status == PTE_VALID) {
         *paddr = entry.paddr;
-        return PT_PRESENT;
+        return PTE_VALID;
     }
 
-    if (entry.swapped) {
-        return PT_SWAPPED;
+    if (entry.status == PTE_SWAPPED) {
+        *swap_index = entry.swap_index;
+        return PTE_SWAPPED;
     }
 
-    return PT_NOT_PRESENT;
+    return PTE_INVALID;
 }
 
 int 
@@ -67,8 +70,7 @@ pt_set_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t paddr) {
 
     l2 = L2_INDEX(vaddr);
     pt_l2->list[l2].paddr = paddr;
-    pt_l2->list[l2].valid = true;
-    pt_l2->list[l2].swapped = false;
+    pt_l2->list[l2].status = PTE_VALID;
 
     return 0;
 }
