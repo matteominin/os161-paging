@@ -345,6 +345,7 @@ file      vm/kmalloc.c
 optofffile dumbvm   vm/addrspace.c
 optofffile dumbvm   vm/pt.c
 optofffile dumbvm   vm/segments.c
+optofffile dumbvm   vm/swapfile.c
 
 #
 # Network

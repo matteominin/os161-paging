@@ -40,9 +40,8 @@
 #include "opt-paging.h"
 
 struct vnode;
-struct pt;
+struct pt_l1;
 struct segment;
-
 
 /*
  * Address space - data structure associated with the virtual memory
