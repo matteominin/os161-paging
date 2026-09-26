@@ -8,7 +8,7 @@
 #define PT_PAGE_BITS       12
 #define PT_L1_ENTRIES   (1 << PT_L1_BITS)
 #define PT_L2_ENTRIES   (1 << PT_L2_BITS)
-#define L1_INDEX(addr)  ((addr >> (PT_L2_BITS + PT_PAGE_BITS)) & (PT_L1_ENTRIES - 1))
+#define L1_INDEX(addr)  (((addr) >> (PT_L2_BITS + PT_PAGE_BITS)) & (PT_L1_ENTRIES - 1))
 #define L2_INDEX(addr)  (((addr) >> PT_PAGE_BITS) & (PT_L2_ENTRIES - 1))
 
 enum pt_status {
@@ -23,8 +23,12 @@ struct pt_entry {
     bool swapped;
 };
 
-struct pt {
-    struct pt_entry *list[PT_L1_ENTRIES];    
+struct pt_l1 {
+    struct pt_l2 *list[PT_L1_ENTRIES];    
+};
+
+struct pt_l2 {
+    struct pt_entry list[PT_L2_ENTRIES];
 };
 
 /*
@@ -49,9 +53,9 @@ struct pt {
  *    pt_destroy - free the page table, including all second-level tables.
  */
 
-struct pt *pt_create(void);
-int pt_get_frame(struct pt *pt, vaddr_t vaddr, paddr_t *paddr);
-int pt_set_frame(struct pt *pt, vaddr_t vaddr, paddr_t paddr);
-void pt_destroy(struct pt *pt);
+struct pt_l1 *pt_create(void);
+int pt_get_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t *paddr);
+int pt_set_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t paddr);
+void pt_destroy(struct pt_l1 *pt_l1);
 
 #endif /* _PT_H */

@@ -4,34 +4,34 @@
 #include <vm.h>
 #include <pt.h>
 
-struct pt *
+struct pt_l1 *
 pt_create(void) {
-    struct pt *pt;
+    struct pt_l1 *pt_l1;
 
-    pt = kmalloc(sizeof(struct pt));
-    if (pt == NULL) return NULL;
+    pt_l1 = kmalloc(sizeof(struct pt_l1));
+    if (pt_l1 == NULL) return NULL;
 
-    bzero(pt->list, sizeof(pt->list));
-    return pt;
+    bzero(pt_l1->list, sizeof(pt_l1->list));
+    return pt_l1;
 }
 
 int 
-pt_get_frame(struct pt *pt, vaddr_t vaddr, paddr_t *paddr) {
+pt_get_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t *paddr) {
     size_t l1, l2;
-    struct pt_entry* l2_table;
+    struct pt_l2* pt_l2;
     struct pt_entry entry;
     
-    KASSERT(pt != NULL);
+    KASSERT(pt_l1 != NULL);
     KASSERT(paddr != NULL);
 
     l1 = L1_INDEX(vaddr);
-    l2_table = pt->list[l1];
-    if (l2_table == NULL) {
+    pt_l2 = pt_l1->list[l1];
+    if (pt_l2 == NULL) {
         return PT_NOT_PRESENT;
     }
 
     l2 = L2_INDEX(vaddr);
-    entry = l2_table[l2];
+    entry = pt_l2->list[l2];
     if (entry.valid) {
         *paddr = entry.paddr;
         return PT_PRESENT;
@@ -45,41 +45,42 @@ pt_get_frame(struct pt *pt, vaddr_t vaddr, paddr_t *paddr) {
 }
 
 int 
-pt_set_frame(struct pt *pt, vaddr_t vaddr, paddr_t paddr) {
+pt_set_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t paddr) {
     size_t l1, l2;
-    struct pt_entry* l2_table;
+    struct pt_l2* pt_l2;
 
-    KASSERT(pt != NULL);
+    KASSERT(pt_l1 != NULL);
     KASSERT((paddr & PAGE_FRAME) == paddr);
 
     l1 = L1_INDEX(vaddr);
-    l2_table = pt->list[l1];
+    pt_l2 = pt_l1->list[l1];
 
-    if (l2_table == NULL) {
-        l2_table = kmalloc(PT_L2_ENTRIES * sizeof(struct pt_entry));
-        if (l2_table == NULL) {
+    if (pt_l2 == NULL) {
+        pt_l2 = kmalloc(sizeof(struct pt_l2));
+        if (pt_l2 == NULL) {
             return ENOMEM;
         }
 
-        bzero(l2_table, PT_L2_ENTRIES * sizeof(struct pt_entry));
+        bzero(pt_l2->list, PT_L2_ENTRIES * sizeof(struct pt_entry));
+        pt_l1->list[l1] = pt_l2;
     }
 
     l2 = L2_INDEX(vaddr);
-    l2_table[l2].paddr = paddr;
-    l2_table[l2].valid = true;
-    l2_table[l2].swapped = false;
+    pt_l2->list[l2].paddr = paddr;
+    pt_l2->list[l2].valid = true;
+    pt_l2->list[l2].swapped = false;
 
     return 0;
 }
 
 void 
-pt_destroy(struct pt *pt) {
+pt_destroy(struct pt_l1 *pt_l1) {
     int i;
-    KASSERT(pt != NULL);
+    KASSERT(pt_l1 != NULL);
 
     for (i=0; i<PT_L1_ENTRIES; i++) {
-        kfree(pt->list[i]);
+        kfree(pt_l1->list[i]);
     }
 
-    kfree(pt);
+    kfree(pt_l1);
 }

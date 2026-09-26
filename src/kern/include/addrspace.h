@@ -61,7 +61,7 @@ struct addrspace {
 #elif OPT_PAGING
         struct segment *as_segments;
         size_t as_nsegs;
-        struct pt *as_pt;
+        struct pt_l1 *as_pt;
         struct vnode *as_v;
 #endif
 };
