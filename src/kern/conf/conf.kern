@@ -341,6 +341,7 @@ file      proc/proc.c
 #
 
 file      vm/kmalloc.c
+file      vm/coremap.c
 
 optofffile dumbvm   vm/addrspace.c
 optofffile dumbvm   vm/pt.c
@@ -447,5 +448,6 @@ file		test/tt3.c
 file		test/synchtest.c
 file		test/semunit.c
 file		test/kmalloctest.c
+file		test/coremaptest.c
 file		test/fstest.c
 optfile net	test/nettest.c
