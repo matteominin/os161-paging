@@ -11,6 +11,7 @@
 #include <spinlock.h>
 #include <vm.h>
 #include <coremap.h>
+#include <vmstats.h>
 
 enum coremap_state {
 	CM_FREE,
@@ -226,6 +227,7 @@ coremap_free_pages(paddr_t paddr)
 void
 vm_bootstrap(void)
 {
+	vmstats_init();
 	coremap_bootstrap();
 }
 

@@ -35,6 +35,7 @@
 #include <uio.h>
 #include <kern/fcntl.h>
 #include <kern/errno.h>
+#include <vmstats.h>
 #include "swapfile.h"
 
 static struct spinlock swap_lock = SPINLOCK_INITIALIZER;
@@ -68,18 +69,23 @@ swap_bootstrap(void) {
 
 void 
 swap_destroy(void) {
+	struct bitmap *old_map;
+	struct vnode *old_vnode;
+
     spinlock_acquire(&swap_lock);
-    
-    if (swap_map != NULL) {
-        bitmap_destroy(swap_map);
-    }
-
-    if (swap_vnode != NULL) {
-        vfs_close(swap_vnode);
-        vfs_remove(path);
-    }
-
+	old_map = swap_map;
+	old_vnode = swap_vnode;
+	swap_map = NULL;
+	swap_vnode = NULL;
     spinlock_release(&swap_lock);
+
+	if (old_map != NULL) {
+		bitmap_destroy(old_map);
+	}
+	if (old_vnode != NULL) {
+		vfs_close(old_vnode);
+		vfs_remove(path);
+	}
 }
 
 int 
@@ -103,6 +109,7 @@ swap_out(paddr_t paddr, swap_index_t *swap_index) {
     }
 
     *swap_index = index;
+	vmstats_inc(VMSTAT_SWAP_FILE_WRITE);
     
     return 0;
 }
@@ -125,6 +132,7 @@ swap_in(paddr_t paddr, swap_index_t swap_index) {
     KASSERT(bitmap_isset(swap_map, swap_index));
     bitmap_unmark(swap_map, swap_index);
     spinlock_release(&swap_lock);
+	vmstats_inc(VMSTAT_SWAP_FILE_READ);
 
     return 0;
 }

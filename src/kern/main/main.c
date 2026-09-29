@@ -49,6 +49,8 @@
 #include <syscall.h>
 #include <test.h>
 #include <version.h>
+#include <swapfile.h>
+#include "opt-paging.h"
 #include "autoconf.h"  // for pseudoconfig
 
 
@@ -130,6 +132,9 @@ boot(void)
 
 	/* Default bootfs - but ignore failure, in case emu0 doesn't exist */
 	vfs_setbootfs("emu0");
+#if OPT_PAGING
+	swap_bootstrap();
+#endif
 
 	kheap_nextgeneration();
 
@@ -149,6 +154,10 @@ shutdown(void)
 {
 
 	kprintf("Shutting down.\n");
+
+#if OPT_PAGING
+	vm_shutdown();
+#endif
 
 	vfs_clearbootfs();
 	vfs_clearcurdir();

@@ -37,6 +37,7 @@
 #include <vnode.h>
 #include <spl.h>
 #include <mips/tlb.h>
+#include <vmstats.h>
 
 #include <segments.h>
 #include <pt.h>
@@ -144,6 +145,7 @@ as_activate(void)
 		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
 	}
 	splx(spl);
+	vmstats_inc(VMSTAT_TLB_INVALIDATE);
 }
 
 void

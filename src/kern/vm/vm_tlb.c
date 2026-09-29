@@ -14,6 +14,7 @@
 #include <pt.h>
 #include <coremap.h>
 #include <swapfile.h>
+#include <vmstats.h>
 #include <vm_tlb.h>
 #include <vm.h>
 
@@ -49,6 +50,17 @@ tlb_get_free_slot(void)
 	return -1;
 }
 
+static bool
+page_has_file_data(const struct segment *seg, vaddr_t page)
+{
+	vaddr_t file_end;
+	vaddr_t page_end;
+
+	file_end = seg->vaddr + seg->filesz;
+	page_end = page + PAGE_SIZE;
+	return page < file_end && page_end > seg->vaddr;
+}
+
 static int
 load_fault_page(struct addrspace *as, vaddr_t faultaddress, paddr_t *paddr)
 {
@@ -75,6 +87,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	struct addrspace *as;
 	struct segment *seg;
 	enum pte_status status;
+	bool page_from_elf;
 	paddr_t paddr;
 	swap_index_t swap_index;
 	vaddr_t page;
@@ -116,6 +129,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	status = pt_get_frame(as->as_pt, page, &paddr, &swap_index);
 	if (status == PTE_VALID) {
 		/* The page is resident; this is only a TLB reload. */
+		vmstats_inc(VMSTAT_TLB_RELOAD);
 	} else if (status == PTE_SWAPPED) {
 		/* Swap-in support is used when a page-table entry is swapped. */
 		paddr = coremap_alloc_pages(1);
@@ -132,7 +146,9 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 			coremap_free_pages(paddr);
 			return result;
 		}
+		vmstats_inc(VMSTAT_PAGE_FAULT_DISK);
 	} else {
+		page_from_elf = page_has_file_data(seg, page);
 		result = load_fault_page(as, page, &paddr);
 		if (result) {
 			return result;
@@ -141,6 +157,12 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		if (result) {
 			coremap_free_pages(paddr);
 			return result;
+		}
+		if (page_from_elf) {
+			vmstats_inc(VMSTAT_PAGE_FAULT_DISK);
+			vmstats_inc(VMSTAT_ELF_FILE_READ);
+		} else {
+			vmstats_inc(VMSTAT_PAGE_FAULT_ZERO);
 		}
 	}
 
@@ -155,7 +177,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	slot = tlb_get_free_slot();
 	if (slot < 0) {
 		slot = tlb_get_rr_victim();
+		vmstats_inc(VMSTAT_TLB_FAULT_REPLACE);
+	} else {
+		vmstats_inc(VMSTAT_TLB_FAULT_FREE);
 	}
+	vmstats_inc(VMSTAT_TLB_FAULT);
 	tlb_write(entryhi, entrylo, slot);
 	splx(spl);
 
