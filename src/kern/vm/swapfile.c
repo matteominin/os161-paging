@@ -71,14 +71,14 @@ void
 swap_destroy(void) {
     spinlock_acquire(&swap_lock);
 
-	if (swap_map != NULL) {
-		bitmap_destroy(swap_map);
-	}
+    if (swap_map != NULL) {
+        bitmap_destroy(swap_map);
+    }
 
-	if (swap_vnode != NULL) {
-		vfs_close(swap_vnode);
-		vfs_remove(path);
-	}
+    if (swap_vnode != NULL) {
+        vfs_close(swap_vnode);
+        vfs_remove(path);
+    }
 
     spinlock_release(&swap_lock);
 }
