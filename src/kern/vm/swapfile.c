@@ -69,23 +69,18 @@ swap_bootstrap(void) {
 
 void 
 swap_destroy(void) {
-	struct bitmap *old_map;
-	struct vnode *old_vnode;
-
     spinlock_acquire(&swap_lock);
-	old_map = swap_map;
-	old_vnode = swap_vnode;
-	swap_map = NULL;
-	swap_vnode = NULL;
-    spinlock_release(&swap_lock);
 
-	if (old_map != NULL) {
-		bitmap_destroy(old_map);
+	if (swap_map != NULL) {
+		bitmap_destroy(swap_map);
 	}
-	if (old_vnode != NULL) {
-		vfs_close(old_vnode);
+
+	if (swap_vnode != NULL) {
+		vfs_close(swap_vnode);
 		vfs_remove(path);
 	}
+
+    spinlock_release(&swap_lock);
 }
 
 int 

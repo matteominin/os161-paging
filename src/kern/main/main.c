@@ -49,7 +49,6 @@
 #include <syscall.h>
 #include <test.h>
 #include <version.h>
-#include <swapfile.h>
 #include "opt-paging.h"
 #include "autoconf.h"  // for pseudoconfig
 
@@ -131,11 +130,7 @@ boot(void)
 	thread_start_cpus();
 
 	/* Default bootfs - but ignore failure, in case emu0 doesn't exist */
-	if (vfs_setbootfs("emu0") == 0) {
-#if OPT_PAGING
-		swap_bootstrap();
-#endif
-	}
+	vfs_setbootfs("emu0");
 
 	kheap_nextgeneration();
 

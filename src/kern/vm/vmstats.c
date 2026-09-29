@@ -1,9 +1,7 @@
 #include <types.h>
 #include <lib.h>
 #include <spinlock.h>
-#include <swapfile.h>
 #include <vmstats.h>
-#include "opt-dumbvm.h"
 
 static unsigned int stats_counts[VMSTAT_COUNT];
 static bool stats_active;
@@ -98,7 +96,4 @@ void
 vm_shutdown(void)
 {
 	vmstats_print();
-#if !OPT_DUMBVM
-	swap_destroy();
-#endif
 }
