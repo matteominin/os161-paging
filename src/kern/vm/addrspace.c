@@ -130,20 +130,16 @@ as_activate(void)
 	int spl;
 
 	as = proc_getas();
-	if (as == NULL) {
-		/*
-		 * Kernel thread without an address space; leave the
-		 * prior address space in place.
-		 */
-		return;
-	}
-
 	/* The TLB is shared by all address spaces and has no process tag. */
 	spl = splhigh();
 	for (i = 0; i < NUM_TLB; i++) {
 		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
 	}
 	splx(spl);
+
+	if (as == NULL) {
+		return;
+	}
 }
 
 void
