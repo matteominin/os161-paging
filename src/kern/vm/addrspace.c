@@ -35,6 +35,8 @@
 #include <proc.h>
 #include <vfs.h>
 #include <vnode.h>
+#include <spl.h>
+#include <mips/tlb.h>
 
 #include <segments.h>
 #include <pt.h>
@@ -124,6 +126,8 @@ void
 as_activate(void)
 {
 	struct addrspace *as;
+	int i;
+	int spl;
 
 	as = proc_getas();
 	if (as == NULL) {
@@ -134,7 +138,12 @@ as_activate(void)
 		return;
 	}
 
-	/* TODO: invalidate the whole TLB here. */
+	/* The TLB is shared by all address spaces and has no process tag. */
+	spl = splhigh();
+	for (i = 0; i < NUM_TLB; i++) {
+		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+	}
+	splx(spl);
 }
 
 void
