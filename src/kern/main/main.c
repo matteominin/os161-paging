@@ -131,10 +131,11 @@ boot(void)
 	thread_start_cpus();
 
 	/* Default bootfs - but ignore failure, in case emu0 doesn't exist */
-	vfs_setbootfs("emu0");
+	if (vfs_setbootfs("emu0") == 0) {
 #if OPT_PAGING
-	swap_bootstrap();
+		swap_bootstrap();
 #endif
+	}
 
 	kheap_nextgeneration();
 
