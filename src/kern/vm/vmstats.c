@@ -1,6 +1,7 @@
 #include <types.h>
 #include <lib.h>
 #include <spinlock.h>
+#include <vm.h>
 #include <vmstats.h>
 
 static unsigned int stats_counts[VMSTAT_COUNT];
