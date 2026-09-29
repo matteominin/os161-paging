@@ -344,6 +344,7 @@ defoption paging
 
 file      vm/kmalloc.c
 optfile   paging vm/coremap.c
+optfile   paging vm/vm_tlb.c
 
 optofffile dumbvm   vm/addrspace.c
 optofffile dumbvm   vm/pt.c
