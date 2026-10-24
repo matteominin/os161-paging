@@ -68,6 +68,12 @@
 #define PADDR_TO_KVADDR(paddr) ((paddr)+MIPS_KSEG0)
 
 /*
+ * Convert a direct-mapped KSEG0 virtual address back to a physical address.
+ * Callers must validate that the address is in KSEG0 before using this macro.
+ */
+#define KVADDR_TO_PADDR(vaddr) ((vaddr)-MIPS_KSEG0)
+
+/*
  * The top of user space. (Actually, the address immediately above the
  * last valid user address.)
  */
