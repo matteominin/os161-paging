@@ -32,6 +32,7 @@
 
 #include <types.h>
 #include "vm.h"
+#include "opt-paging.h"
 
 #define SWAPFILE_MAX_SIZE (9 * 1024 * 1024)
 #define SWAP_MAX_PAGES (SWAPFILE_MAX_SIZE / PAGE_SIZE)
@@ -59,6 +60,10 @@ void swap_destroy(void);
 
 int swap_out(paddr_t paddr, swap_index_t *swap_index);
 int swap_in(paddr_t paddr, swap_index_t swap_index);
-// TODO: is it necessary to just free a page from swap?
+
+#if OPT_PAGING
+/* Release a swapped-out page when its address space is destroyed. */
+void swap_free(swap_index_t swap_index);
+#endif
 
 #endif /* _SWAPFILE_H_ */

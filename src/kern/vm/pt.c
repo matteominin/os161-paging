@@ -3,6 +3,11 @@
 #include <lib.h>
 #include <vm.h>
 #include <pt.h>
+#include "opt-paging.h"
+
+#if OPT_PAGING
+#include <coremap.h>
+#endif
 
 struct pt_l1 *
 pt_create(void) {
@@ -78,9 +83,26 @@ pt_set_frame(struct pt_l1 *pt_l1, vaddr_t vaddr, paddr_t paddr) {
 void 
 pt_destroy(struct pt_l1 *pt_l1) {
     int i;
+#if OPT_PAGING
+    int j;
+    struct pt_l2 *pt_l2;
+#endif
+
     KASSERT(pt_l1 != NULL);
 
     for (i=0; i<PT_L1_ENTRIES; i++) {
+#if OPT_PAGING
+        pt_l2 = pt_l1->list[i];
+        if (pt_l2 != NULL) {
+            for (j=0; j<PT_L2_ENTRIES; j++) {
+                if (pt_l2->list[j].status == PTE_VALID) {
+                    coremap_free_pages(pt_l2->list[j].paddr);
+                } else if (pt_l2->list[j].status == PTE_SWAPPED) {
+                    swap_free(pt_l2->list[j].swap_index);
+                }
+            }
+        }
+#endif
         kfree(pt_l1->list[i]);
     }
 
