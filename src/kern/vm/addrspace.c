@@ -35,11 +35,15 @@
 #include <proc.h>
 #include <vfs.h>
 #include <vnode.h>
-#include <spl.h>
-#include <mips/tlb.h>
 
 #include <segments.h>
 #include <pt.h>
+#include "opt-paging.h"
+
+#if OPT_PAGING
+#include <mips/tlb.h>
+#include <spl.h>
+#endif
 
 #define VM_STACKPAGES	18
 
@@ -125,6 +129,7 @@ as_destroy(struct addrspace *as)
 void
 as_activate(void)
 {
+#if OPT_PAGING
 	struct addrspace *as;
 	int i;
 	int spl;
@@ -140,16 +145,23 @@ as_activate(void)
 	if (as == NULL) {
 		return;
 	}
+#endif
 }
 
 void
 as_deactivate(void)
 {
-	/*
-	 * Write this. For many designs it won't need to actually do
-	 * anything. See proc.c for an explanation of why it (might)
-	 * be needed.
-	 */
+#if OPT_PAGING
+	int i;
+	int spl;
+
+	/* A destroyed address space must leave no translations to freed frames. */
+	spl = splhigh();
+	for (i = 0; i < NUM_TLB; i++) {
+		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+	}
+	splx(spl);
+#endif
 }
 
 /*

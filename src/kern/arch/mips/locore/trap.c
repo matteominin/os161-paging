@@ -28,6 +28,7 @@
  */
 
 #include <types.h>
+#include <kern/errno.h>
 #include <signal.h>
 #include <lib.h>
 #include <mips/specialreg.h>
@@ -36,9 +37,11 @@
 #include <spl.h>
 #include <thread.h>
 #include <current.h>
+#include <proc.h>
 #include <vm.h>
 #include <mainbus.h>
 #include <syscall.h>
+#include "opt-paging.h"
 
 
 /* in exception-*.S */
@@ -71,7 +74,7 @@ static const char *const trapcodenames[NTRAPCODES] = {
  */
 static
 void
-kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
+kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr, int vm_error)
 {
 	int sig = 0;
 
@@ -114,9 +117,13 @@ kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
 
 	kprintf("Fatal user mode trap %u sig %d (%s, epc 0x%x, vaddr 0x%x)\n",
 		code, sig, trapcodenames[code], epc, vaddr);
-	if (code == EX_MOD) {
-		thread_exit();
+#if OPT_PAGING
+	if (vm_error == EACCES && (code == EX_MOD || code == EX_TLBS)) {
+		proc_exit_on_fault();
 	}
+#else
+	(void)vm_error;
+#endif
 	panic("I don't know how to handle this\n");
 }
 
@@ -132,6 +139,7 @@ mips_trap(struct trapframe *tf)
 	/*bool isutlb; -- not used */
 	bool iskern;
 	int spl;
+	int vm_error = 0;
 
 	/* The trap frame is supposed to be 35 registers long. */
 	KASSERT(sizeof(struct trapframe)==(35*4));
@@ -235,17 +243,20 @@ mips_trap(struct trapframe *tf)
 	 */
 	switch (code) {
 	case EX_MOD:
-		if (vm_fault(VM_FAULT_READONLY, tf->tf_vaddr)==0) {
+		vm_error = vm_fault(VM_FAULT_READONLY, tf->tf_vaddr);
+		if (vm_error == 0) {
 			goto done;
 		}
 		break;
 	case EX_TLBL:
-		if (vm_fault(VM_FAULT_READ, tf->tf_vaddr)==0) {
+		vm_error = vm_fault(VM_FAULT_READ, tf->tf_vaddr);
+		if (vm_error == 0) {
 			goto done;
 		}
 		break;
 	case EX_TLBS:
-		if (vm_fault(VM_FAULT_WRITE, tf->tf_vaddr)==0) {
+		vm_error = vm_fault(VM_FAULT_WRITE, tf->tf_vaddr);
+		if (vm_error == 0) {
 			goto done;
 		}
 		break;
@@ -275,7 +286,7 @@ mips_trap(struct trapframe *tf)
 		 * Fatal fault in user mode.
 		 * Kill the current user process.
 		 */
-		kill_curthread(tf->tf_epc, code, tf->tf_vaddr);
+		kill_curthread(tf->tf_epc, code, tf->tf_vaddr, vm_error);
 		goto done;
 	}
 
