@@ -24,7 +24,12 @@
 int
 tlb_get_rr_victim(void)
 {
-	return 0;
+	static unsigned int next_victim;
+	unsigned int victim;
+
+	victim = next_victim;
+	next_victim = (next_victim + 1) % NUM_TLB;
+	return (int)victim;
 }
 
 static int
