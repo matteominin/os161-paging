@@ -35,6 +35,7 @@
 #include <uio.h>
 #include <kern/fcntl.h>
 #include <kern/errno.h>
+#include <vmstats.h>
 #include "swapfile.h"
 
 static struct spinlock swap_lock = SPINLOCK_INITIALIZER;
@@ -69,7 +70,7 @@ swap_bootstrap(void) {
 void 
 swap_destroy(void) {
     spinlock_acquire(&swap_lock);
-    
+
     if (swap_map != NULL) {
         bitmap_destroy(swap_map);
     }
@@ -103,6 +104,9 @@ swap_out(paddr_t paddr, swap_index_t *swap_index) {
     }
 
     *swap_index = index;
+#if OPT_PAGING
+	vmstats_inc(VMSTAT_SWAP_FILE_WRITE);
+#endif
     
     return 0;
 }

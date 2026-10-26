@@ -35,6 +35,7 @@
 #include <proc.h>
 #include <vfs.h>
 #include <vnode.h>
+#include <vmstats.h>
 
 #include <segments.h>
 #include <pt.h>
@@ -141,6 +142,7 @@ as_activate(void)
 		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
 	}
 	splx(spl);
+	vmstats_inc(VMSTAT_TLB_INVALIDATE);
 
 	if (as == NULL) {
 		return;
@@ -161,6 +163,7 @@ as_deactivate(void)
 		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
 	}
 	splx(spl);
+	vmstats_inc(VMSTAT_TLB_INVALIDATE);
 #endif
 }
 
