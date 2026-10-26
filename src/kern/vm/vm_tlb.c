@@ -90,7 +90,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		break;
 	case VM_FAULT_READONLY:
 		/* The trap code terminates the offending user process. */
-		return EFAULT;
+		return EACCES;
 	default:
 		return EINVAL;
 	}
@@ -108,6 +108,9 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 	seg = seg_find(as, page);
 	if (seg == NULL) {
 		return EFAULT;
+	}
+	if (faulttype == VM_FAULT_WRITE && !seg->writable) {
+		return EACCES;
 	}
 
 	status = pt_get_frame(as->as_pt, page, &paddr, &swap_index);
@@ -141,12 +144,11 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 		}
 	}
 
-	if (faulttype == VM_FAULT_WRITE && !seg->writable) {
-		return EACCES;
-	}
-
 	entryhi = page;
-	entrylo = paddr | TLBLO_VALID | TLBLO_DIRTY;
+	entrylo = paddr | TLBLO_VALID;
+	if (seg->writable) {
+		entrylo |= TLBLO_DIRTY;
+	}
 
 	/* TLB accesses must not be interrupted by a context switch. */
 	spl = splhigh();

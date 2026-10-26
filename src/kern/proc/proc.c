@@ -49,6 +49,10 @@
 #include <addrspace.h>
 #include <vnode.h>
 
+#if OPT_PAGING
+#include <thread.h>
+#endif
+
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
@@ -88,8 +92,8 @@ proc_create(const char *name)
 /*
  * Destroy a proc structure.
  *
- * Note: nothing currently calls this. Your wait/exit code will
- * probably want to do so.
+ * The caller must own the process exclusively and detach all its threads
+ * before destroying it.
  */
 void
 proc_destroy(struct proc *proc)
@@ -171,6 +175,37 @@ proc_destroy(struct proc *proc)
 	kfree(proc->p_name);
 	kfree(proc);
 }
+
+#if OPT_PAGING
+void
+proc_exit_on_fault(void)
+{
+	struct proc *proc;
+	struct addrspace *as;
+	int result;
+
+	proc = curproc;
+	KASSERT(proc != NULL);
+	KASSERT(proc != kproc);
+	spinlock_acquire(&proc->p_lock);
+	KASSERT(proc->p_numthreads == 1);
+	spinlock_release(&proc->p_lock);
+
+	/* Stop context switches from reactivating an address space being freed. */
+	as = proc_setas(NULL);
+	as_deactivate();
+	if (as != NULL) {
+		as_destroy(as);
+	}
+
+	/* thread_exit() will detach us from kproc after the user proc is gone. */
+	proc_remthread(curthread);
+	result = proc_addthread(kproc, curthread);
+	KASSERT(result == 0);
+	proc_destroy(proc);
+	thread_exit();
+}
+#endif
 
 /*
  * Create the process structure for the kernel.
