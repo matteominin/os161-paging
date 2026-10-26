@@ -38,6 +38,7 @@
 
 
 #include <machine/vm.h>
+#include "opt-paging.h"
 
 /* Fault-type arguments to vm_fault() */
 #define VM_FAULT_READ        0    /* A read was attempted */
@@ -47,7 +48,9 @@
 
 /* Initialization function */
 void vm_bootstrap(void);
+#if OPT_PAGING
 void vm_shutdown(void);
+#endif
 
 /* Fault handling function called by trap code */
 int vm_fault(int faulttype, vaddr_t faultaddress);

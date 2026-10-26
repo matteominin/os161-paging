@@ -37,6 +37,7 @@
  */
 
 #include <spinlock.h>
+#include "opt-paging.h"
 
 struct addrspace;
 struct thread;
@@ -84,6 +85,11 @@ struct proc *proc_create_runprogram(const char *name);
 
 /* Destroy a process. */
 void proc_destroy(struct proc *proc);
+
+#if OPT_PAGING
+/* Release a single-threaded user process after a fatal protection fault. */
+__DEAD void proc_exit_on_fault(void);
+#endif
 
 /* Attach a thread to a process. Must not already have a process. */
 int proc_addthread(struct proc *proc, struct thread *t);

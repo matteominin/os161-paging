@@ -47,6 +47,25 @@ vmstats_inc(unsigned int index)
 }
 
 void
+vmstats_record_fault(unsigned int source, bool replaced)
+{
+	KASSERT(source == VMSTAT_TLB_RELOAD || source == VMSTAT_PAGE_FAULT_ZERO ||
+		source == VMSTAT_ELF_FILE_READ || source == VMSTAT_SWAP_FILE_READ);
+
+	/* Related counters must appear together in a shutdown snapshot. */
+	spinlock_acquire(&stats_lock);
+	if (stats_active) {
+		stats_counts[VMSTAT_TLB_FAULT]++;
+		stats_counts[replaced ? VMSTAT_TLB_FAULT_REPLACE : VMSTAT_TLB_FAULT_FREE]++;
+		stats_counts[source]++;
+		if (source == VMSTAT_ELF_FILE_READ || source == VMSTAT_SWAP_FILE_READ) {
+			stats_counts[VMSTAT_PAGE_FAULT_DISK]++;
+		}
+	}
+	spinlock_release(&stats_lock);
+}
+
+void
 vmstats_print(void)
 {
 	unsigned int counts[VMSTAT_COUNT];

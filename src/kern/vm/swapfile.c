@@ -104,7 +104,9 @@ swap_out(paddr_t paddr, swap_index_t *swap_index) {
     }
 
     *swap_index = index;
+#if OPT_PAGING
 	vmstats_inc(VMSTAT_SWAP_FILE_WRITE);
+#endif
     
     return 0;
 }
@@ -127,10 +129,21 @@ swap_in(paddr_t paddr, swap_index_t swap_index) {
     KASSERT(bitmap_isset(swap_map, swap_index));
     bitmap_unmark(swap_map, swap_index);
     spinlock_release(&swap_lock);
-	vmstats_inc(VMSTAT_SWAP_FILE_READ);
 
     return 0;
 }
+
+#if OPT_PAGING
+void
+swap_free(swap_index_t swap_index) {
+    spinlock_acquire(&swap_lock);
+    KASSERT(swap_map != NULL);
+    KASSERT(swap_index < SWAP_MAX_PAGES);
+    KASSERT(bitmap_isset(swap_map, swap_index));
+    bitmap_unmark(swap_map, swap_index);
+    spinlock_release(&swap_lock);
+}
+#endif
 
 static int
 swap_io(paddr_t paddr, swap_index_t index, enum uio_rw mode) {

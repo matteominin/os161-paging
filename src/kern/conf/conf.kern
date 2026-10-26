@@ -343,7 +343,7 @@ file      proc/proc.c
 defoption paging
 
 file      vm/kmalloc.c
-file      vm/vmstats.c
+optfile   paging vm/vmstats.c
 optfile   paging vm/coremap.c
 optfile   paging vm/vm_tlb.c
 

@@ -1,6 +1,10 @@
 #ifndef _VMSTATS_H_
 #define _VMSTATS_H_
 
+#include <types.h>
+#include "opt-paging.h"
+
+#if OPT_PAGING
 /* VM activity counters required by the paging assignment. */
 #define VMSTAT_TLB_FAULT          0
 #define VMSTAT_TLB_FAULT_FREE     1
@@ -16,6 +20,10 @@
 
 void vmstats_init(void);
 void vmstats_inc(unsigned int index);
+/* Record one completed fault: reload, zero fill, ELF read, or swap read. */
+void vmstats_record_fault(unsigned int source, bool replaced);
 void vmstats_print(void);
+
+#endif /* OPT_PAGING */
 
 #endif /* _VMSTATS_H_ */

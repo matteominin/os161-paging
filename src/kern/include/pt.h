@@ -53,6 +53,7 @@ struct pt_l2 {
  *                second-level table could not be allocated.
  *
  *    pt_destroy - free the page table, including all second-level tables.
+ *                With PAGING, also release its resident frames and swap slots.
  */
 
 struct pt_l1 *pt_create(void);
