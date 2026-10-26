@@ -129,18 +129,23 @@ as_destroy(struct addrspace *as)
 void
 as_activate(void)
 {
+#if OPT_PAGING
 	struct addrspace *as;
+	int i;
+	int spl;
 
 	as = proc_getas();
+	/* The TLB is shared by all address spaces and has no process tag. */
+	spl = splhigh();
+	for (i = 0; i < NUM_TLB; i++) {
+		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+	}
+	splx(spl);
+
 	if (as == NULL) {
-		/*
-		 * Kernel thread without an address space; leave the
-		 * prior address space in place.
-		 */
 		return;
 	}
-
-	/* TODO: invalidate the whole TLB here. */
+#endif
 }
 
 void
